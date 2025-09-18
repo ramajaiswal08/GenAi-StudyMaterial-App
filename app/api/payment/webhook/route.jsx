@@ -1,3 +1,4 @@
+import { USER_TABLE } from "@/configs/schema";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -31,13 +32,24 @@ export async function POST(req){
      }
 
      switch (eventType) {
-        case 'Checkout_session.completed' : 
+        case 'Checkout_session.completed' :
+         
+         const result = await db.update(USER_TABLE).set({
+            isMember:true,
+         }).where(eq(USER_TABLE.email,data.customer_details.email));
          break;
 
          case "Invoice.paid":
+
+        
             break;
 
         case "Invoice.payment_failed" : 
+
+         await db.update(USER_TABLE).set({
+            isMember:false,
+         }).where(eq(USER_TABLE.email,data.customer_details.email));
+         break;
         break;
 
         default : 

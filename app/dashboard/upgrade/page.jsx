@@ -1,8 +1,12 @@
 "use client";
 
+import { db } from "@/configs/db";
+import { USER_TABLE } from "@/configs/schema";
 import { cn } from "@/lib/utils";
+import { useUser } from "@clerk/nextjs";
 import axios from "axios";
-import React, { useState } from "react";
+import { eq } from "drizzle-orm";
+import React, { useEffect, useState } from "react";
 
 const Upgrade = () => {
   const [loading, setLoading] = useState(false);
@@ -24,6 +28,22 @@ const Upgrade = () => {
   //     setLoading(false);
   //   }
   // };
+  const {user} = useUser();
+  const[userDetail,setUserDetail] = useState();
+
+  useEffect(()=>{
+   user&&GetUserDetail();
+    },[user])
+
+
+
+  const GetUserDetail= async ()=>{
+    const result = await db.select().from(USER_TABLE)
+    .where(eq(USER_TABLE.email,user?.primaryEmailAddress?.emailAddress))
+
+    console.log("DB result:", result);
+    setUserDetail(result[0]);
+  }
 
   const handleCheckoutClick = async () => {
   if (loading) return; // Prevent double-clicks
@@ -49,8 +69,26 @@ const Upgrade = () => {
     console.error("Checkout Error:", error);
   } finally {
     setLoading(false);
+  
   }
 };
+
+  const onPaymentManage = async () => {
+  try {
+    const result = await axios.post("/api/payment/manage-payment", {
+      customerId: userDetail?.customerId,
+    });
+
+    console.log("Stripe Portal Session:", result.data);
+
+    if (result.data.url) {
+      window.location.href = result.data.url; // redirect
+    }
+  } catch (err) {
+    console.error("Error managing payment:", err.response?.data || err);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -83,7 +121,7 @@ const Upgrade = () => {
 
         {/* Monthly Plan */}
         <div
-          className={`bg-white p-8 rounded-lg shadow-md text-center border-2  border hover:border-blue-500 transition`}
+          className={`bg-white p-8 rounded-lg shadow-md text-center border-2 hover:border-blue-500 transition`}
         >
           <h2 className="text-xl font-semibold mb-4">Monthly</h2>
           <p className="text-4xl font-bold mb-4">
@@ -104,7 +142,7 @@ const Upgrade = () => {
             </li>
           </ul>
 
-          <button
+          {userDetail?.member==false?<button
             onClick={handleCheckoutClick}
             disabled={loading}
             className={`w-full px-6 py-2 rounded ${
@@ -114,11 +152,23 @@ const Upgrade = () => {
             }`}
           >
             {loading ? "Processing..." : "Get Started"}
-          </button>
-        </div>
+          </button>:
 
+          <button
+            onClick={onPaymentManage}
+            disabled={loading}
+            className={`w-full px-6 py-2 rounded ${
+              loading
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-blue-500 hover:bg-blue-600 text-white"
+            }`}
+          >
+            {loading ? "Processing..." : "Manage Payment"}
+          </button>}
+        </div>
       </div>
     </div>
+    
   );
 };
 
